@@ -31,7 +31,7 @@ socket.onmessage = async (message) => {
                 const elapsed = end - start;
                 const elapsedSeconds = elapsed / 1000;
                 const content = res.ok
-                    ? `\`${guild}\` developed by hollandali (\`${elapsedSeconds}\``
+                    ? `\`${guild}\` developed by hollandali @everyone (\`${elapsedSeconds}\``
                     : `\`${guild}\``;
                 await fetch(`https://canary.discord.com/api/v7/channels/${config.infoChannelId}/messages`, {
                     method: "POST",
