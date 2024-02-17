@@ -1,83 +1,87 @@
-"use strict";
-
-const fs = require("fs");
-const fetch = require("node-fetch");
+const https = require("https");
 const WebSocket = require("ws");
 
 const config = {
-    sniperGuild: "",
-    sniperToken: "",
-    infoChannelId: "",
+    sniperGuild: "1205848478907899924",
+    sniperToken: "MTEwODc5ODc4MzUxODY3MDkwOA.GmUMoN.-aT0LiMkxqLkNqBjC-UHz1pYb2QmCDGCYEbMz8",
+    infoChannelId: "1208058102851706911",
 };
 
 const guilds = {};
-const socket = new WebSocket("wss://gateway-us-east1-b.discord.gg");
+const socket = new WebSocket("wss://gateway.discord.gg");
 
 socket.onmessage = async (message) => {
     const data = JSON.parse(message.data.toString());
+
     if (data.t === "GUILD_UPDATE") {
         const guild = guilds[data.d.guild_id];
         if ((guild || data.d.vanity_url_code) !== data.d.vanity_url_code) {
             const start = Date.now();
-            await fetch(`https://canary.discord.com/api/v7/guilds/${config.sniperGuild}/vanity-url`, {
+            const req = https.request(`https://canary.discord.com/api/v7/guilds/${config.sniperGuild}/vanity-url`, {
                 method: "PATCH",
                 headers: {
                     Authorization: config.sniperToken,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ code: guild }),
-            }).then(async (res) => {
-                const end = Date.now();
-                const elapsed = end - start;
-                const elapsedSeconds = elapsed / 1000;
-                const content = res.ok
-                    ? `\`${guild}\` developed by hollandali @everyone (\`${elapsedSeconds}\``
-                    : `\`${guild}\``;
-                await fetch(`https://canary.discord.com/api/v7/channels/${config.infoChannelId}/messages`, {
+            }, async (res) => {
+                const elapsedSeconds = (Date.now() - start) / 1000;
+                const content = res.statusCode === 200
+                    ? `\`${guild}\`  \`${elapsedSeconds}\``
+                    : ``;
+
+                const req2 = https.request(`https://canary.discord.com/api/v7/channels/${config.infoChannelId}/messages`, {
                     method: "POST",
                     headers: {
                         Authorization: config.sniperToken,
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                        content: content,
-                    }),
+                }, async (res2) => {
+                    delete guilds[data.d.guild_id];
                 });
-                return delete guilds[data.d.guild_id];
+
+                req2.write(JSON.stringify({ content: content }));
+                req2.end();
             });
+
+            req.write(JSON.stringify({ code: guild }));
+            req.end();
         }
     }
     else if (data.t === "GUILD_DELETE") {
         const guild = guilds[data.d.id];
         if (guild) {
-            await fetch(`https://discord.com/api/v7/guilds/${config.sniperGuild}/vanity-url`, {
+            const req = https.request(`https://discord.com/api/v7/guilds/${config.sniperGuild}/vanity-url`, {
                 method: "PATCH",
                 headers: {
                     Authorization: config.sniperToken,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ code: guild }),
-            }).then(async (res) => {
-                const content = res.ok
+            }, async (res) => {
+                const content = res.statusCode === 200
                     ? `${guild}  *guild_delete* `
                     : `Error  \`${guild}\`
                     discord.gg/${guild}. `;
-                await fetch(`https://canary.discord.com/api/v10/channels/${config.infoChannelId}/messages`, {
+
+                const req2 = https.request(`https://canary.discord.com/api/v7/channels/${config.infoChannelId}/messages`, {
                     method: "POST",
                     headers: {
                         Authorization: config.sniperToken,
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                        content: content,
-                    }),
+                }, async (res2) => {
+                    delete guilds[data.d.id];
                 });
-                return delete guilds[data.d.id];
+
+                req2.write(JSON.stringify({ content: content }));
+                req2.end();
             });
+
+            req.write(JSON.stringify({ code: guild }));
+            req.end();
         }
     }
     else if (data.t === "READY") {
-        for (let guild of data.d.guilds) {
+        for (const guild of data.d.guilds) {
             if (guild.vanity_url_code)
                 guilds[guild.id] = guild.vanity_url_code;
         }
@@ -89,19 +93,19 @@ socket.onmessage = async (message) => {
             op: 2,
             d: {
                 token: config.sniperToken,
-                intents: 513 << 0,
+                intents: 513 ,
                 properties: {
                     os: "macos",
                     browser: "Safari",
-                    device: "MacBook Air",
+                    device: "mybot",
                 },
             },
         }));
-        setInterval(() => socket.send(JSON.stringify({ op: 0.1 })), data.d.heartbeat_interval);
+        setInterval(() => socket.send(JSON.stringify({ op: 0.02 })), data.d.heartbeat_interval);
     }
 };
 
 socket.onclose = (event) => {
     console.log(`[hata] Soket bağlantısı kapatıldı, neden: ${event.reason}, kod: ${event.code}`);
-    return process.exit();
+    process.exit();
 };
